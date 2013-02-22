@@ -1,0 +1,58 @@
+/************************************************************************************
+LINUX Help File colour and fonts are done here. Halibut controls margins, line spacing and indents.
+*************************************************************************************/
+
+BODY {
+	background: #F5F5DC;
+	font-family: Verdana, Arial, Helvetica;
+	font-size: 100%;
+	color: #000000;
+	font-weight: normal;
+}
+
+A:link {
+	text-decoration: none;
+	color: Blue;
+	font-weight: bold;
+}          /* unvisited link */
+
+A:visited {
+	text-decoration: none;
+	color: 336666;
+	font-weight: bold;
+}        /* visited links */
+
+A:active { 
+	text-decoration: none;
+	font-weight: bold;	
+	color: red;
+	}        /* active links */
+
+a:hover {
+	text-decoration: underline;
+	color:red;
+	}
+
+H1 {
+	text-align: left;
+	font-size: large;
+	font-style: italic;
+	font-weight: bold;
+	padding: 3px 6px;
+}
+
+H2 {
+	text-align: left;
+	font-size: medium;
+	font-style: italic;
+	font-weight: bold;
+	padding: 3px 6px;
+}
+
+H3 {
+	text-align: left;
+	font-size: small;
+	font-style: italic;
+	font-weight: bold;
+	padding: 3px 6px;
+}
