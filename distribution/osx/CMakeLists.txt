@@ -25,6 +25,12 @@ INSTALL(DIRECTORY
   USE_SOURCE_PERMISSIONS
   )
 
+INSTALL(DIRECTORY
+  ${MACPORTS_DIR}/etc/gdk-pixbuf-2.0
+  DESTINATION lib
+  USE_SOURCE_PERMISSIONS
+  )
+
 INSTALL(FILES
   ${MACPORTS_DIR}/etc/pango/pangorc
   ${MACPORTS_DIR}/etc/pango/pango.modules
@@ -35,12 +41,6 @@ INSTALL(FILES
   ${MACPORTS_DIR}/etc/fonts/fonts.conf
   ${MACPORTS_DIR}/etc/fonts/fonts.dtd
   DESTINATION etc/fonts
-  )
-
-INSTALL(DIRECTORY
-  ${MACPORTS_DIR}/lib/gdk-pixbuf-2.0
-  DESTINATION lib
-  USE_SOURCE_PERMISSIONS
   )
 
 INSTALL(FILES
