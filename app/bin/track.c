@@ -958,6 +958,7 @@ LOG( log_track, 4, ( "DeleteTrack(T%d)\n", GetTrkIndex(trk) ) )
 		}
 	}
 	UndoDelete( trk );
+    MainRedraw();
 	trackCount--;
 	AuditTracks( "deleteTrack T%d", trk->index);
 	InfoCount( trackCount );
@@ -1485,6 +1486,7 @@ EXPORT STATUS_T EndPtDescriptionMove(
 		DrawEndElev( &tempD, trk, ep, color );
 		if (action != C_UP)
 			DrawLine( &tempD, p0, p1, 0, wDrawColorBlack );
+        MainRedraw();
 		return action==C_UP?C_TERMINATE:C_CONTINUE;
 
 	case C_REDRAW:
