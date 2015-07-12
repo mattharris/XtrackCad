@@ -107,7 +107,7 @@ STATUS_T DrawGeomMouse(
 		drawContext_t *context )
 {
 	static int lastValid = FALSE;
-	static coOrd pos0, pos0x, pos1, lastPos;
+	static coOrd pos0, pos0x, pos1, pos2, pos3, lastPos;
 	trkSeg_p segPtr;
 	coOrd *pts;
 	int inx;
