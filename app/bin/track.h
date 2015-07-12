@@ -202,13 +202,8 @@ typedef struct {
 			} l;
             struct {
                 coOrd pos[4];
-                ANGLE_T angle;
             } b;
             struct {
-                coOrd pos[4];
-                ANGLE_T angle;
-            } f;
-			struct {
 				coOrd center;
 				ANGLE_T a0, a1;
 				DIST_T radius;
