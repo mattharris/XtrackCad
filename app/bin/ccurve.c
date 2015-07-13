@@ -132,7 +132,7 @@ EXPORT STATUS_T CreateCurve(
 			InfoMessage( _("Drag from Center to End-Point") );
 			break;
 		case crvCmdFromChord:
-        case bezCmdFromChord:
+        case crvCmdBezFromChord:
 			InfoMessage( _("Drag to other end of chord") );
 			break;
 		}
@@ -168,14 +168,14 @@ EXPORT STATUS_T CreateCurve(
 				tempSegs(0).width = width;
 				message( _("Drag to other end of chord") );
 				break;
-            case bezCmdFromChord:
+            case crvCmdBezFromChord:
                 tempSegs(0).type = (track?SEG_BZRTRK:SEG_BZRLIN);
                 tempSegs(0).color = color;
                 tempSegs(0).width = width;
                 message( _("Drag to other end of Bezier") );
                 break;
 			}
-            if (mode == bezCmdFromChord) tempSegs(0).u.b.pos[0] = pos;
+            if (mode == crvCmdBezFromChord) tempSegs(0).u.b.pos[0] = pos;
             else tempSegs(0).u.l.pos[0] = pos;
 		return C_CONTINUE;
 
@@ -211,16 +211,16 @@ EXPORT STATUS_T CreateCurve(
 				tempSegs_da.cnt = 1;
 			}
 			break;
-        case bezCmdFromChord:
-            message( _("Length=%s Angle=%0.3f"), Formatdistance(d), PutAngle(a) );
+        case crvCmdBezFromChord:
+            message( _("Length=%s Angle=%0.3f"), FormatDistance(d), PutAngle(a) );
                 if (d >mainD.scale*0.5 ) {
                     coOrd pos1, pos2;
-                    pos1.x = (pos.x+pos0.x)/3.0
-                    pos1.y = (pos.y+pos0.y)/3.0
-                    DrawControlArm(& tempSegs(1), pos0, pos1, TRUE, wDrawColorBlack );
-                    pos2.x = (pos.x+pos0.x)*2.0/3.0
-                    pos2.y = (pos.y+pos0.y)*2.0/3.0
-                    DrawControlArm(& tempSegs(1), pos2, pos, TRUE, wDrawColorBlack );
+                    pos1.x = (pos.x+pos0.x)/3.0;
+                    pos1.y = (pos.y+pos0.y)/3.0;
+                    DrawControlArm(& tempSegs(1), pos0, pos1, wDrawColorBlack );
+                    pos2.x = (pos.x+pos0.x)*2.0/3.0;
+                    pos2.y = (pos.y+pos0.y)*2.0/3.0;
+                    DrawControlArm(& tempSegs(3), pos2, pos, wDrawColorBlack );
                 } else {
                     tempSegs_da.cnt = 6;
                 }
@@ -237,7 +237,7 @@ EXPORT STATUS_T CreateCurve(
 				tempSegs(1).color = drawColorRed;
 		case crvCmdFromTangent:
 		case crvCmdFromCenter:
-        case bezCmdFromChord:
+        case crvCmdBezFromChord:
 				tempSegs(2).color = drawColorRed;
 				tempSegs(3).color = drawColorRed;
 				tempSegs(4).color = drawColorRed;
@@ -245,7 +245,7 @@ EXPORT STATUS_T CreateCurve(
 				tempSegs(6).color = drawColorRed;
 				break;
 		}
-        if (mode == bezCmdFromChord) message( _("Select control Point or End to adjust") );
+        if (mode == crvCmdBezFromChord) message( _("Select control Point or End to adjust") );
         else message( _("Drag on Red arrows to adjust curve") );
 		return C_CONTINUE;
 
@@ -285,13 +285,13 @@ static STATUS_T CmdCurve( wAction_t action, coOrd pos )
 			return CreateCurve( action, pos, TRUE, wDrawColorBlack, 0, curveMode, InfoMessage );
 		} else {
 			tempSegs_da.cnt = segCnt;
-            if (curveMode == bezCmdFromChord) {
-                long d = FindDistance(pos[0],pos);
-                da.SelectPos = 0;
+            if (curveMode == crvCmdBezFromChord) {
+                long d = FindDistance(Da.pos[0],pos);
+                Da.selectPoint = 0;
                 for(int i=0;i<4;i++) {
-                    if (d>FindDistance(pos[i],pos)) {
-                        d=FindDistance(pos[i],pos);
-                        da.SelectPos = i;
+                    if (d>FindDistance(Da.pos[i],pos)) {
+                        d=FindDistance(Da.pos[i],pos);
+                        Da.selectPoint = i;
                     }
                 }
                 if (IsClose(d)) {
@@ -299,7 +299,7 @@ static STATUS_T CmdCurve( wAction_t action, coOrd pos )
                     Da.state = 2;
                     InfoMessage( _("Drag to reposition"));
                 } else {
-                    Da.SelectPos = 0;
+                    Da.selectPoint = 0;
                     InfoMessage( _("Select an control point or End, Enter to create curve"));
                 }
             }
@@ -315,19 +315,19 @@ static STATUS_T CmdCurve( wAction_t action, coOrd pos )
 			rc = CreateCurve( action, pos, TRUE, wDrawColorBlack, 0, curveMode, InfoMessage );
 		} else {
 			SnapPos( &pos );
-            if (Da.state == 2 && curveMode == bezCmdFromChord) {
-                Da.pos[Da.selectPos] = pos; // Move selected point
+            if (Da.state == 2 && curveMode == crvCmdBezFromChord) {
+                Da.pos[Da.selectPoint] = pos; // Move selected point
                 tempSegs(0).type = SEG_BZRLIN;
-                tempSegs(0).u.b.pos0 = Da.pos[0];
-                tempSegs(0).u.b.pos1 = Da.pos[1];
-                tempSegs(0).u.b.pos2 = Da.pos[2];
-                tempSegs(0).u.b.pos3 = Da.pos[3];
-                drawControlArm(Da.pos[0], Da.pos[1], wDrawColorRed);
-                drawControlArm(Da.pos[3], Da.pos[2], wDrawColorRed);
-                tempsegs_da.cnt = 6;
+                tempSegs(0).u.b.pos[0] = Da.pos[0];
+                tempSegs(0).u.b.pos[1] = Da.pos[1];
+                tempSegs(0).u.b.pos[2] = Da.pos[2];
+                tempSegs(0).u.b.pos[3] = Da.pos[3];
+                DrawControlArm(& tempSegs(1), Da.pos[0], Da.pos[1], drawColorRed);
+                DrawControlArm(& tempSegs(3), Da.pos[3], Da.pos[2], drawColorRed);
+                tempSegs_da.cnt = 6;
                 InfoMessage( _("BezierTrack: Length=%s Min Radius=%s"),
-                            FormatDistance(BezierLength(Da.pos[0],Da.pos[1],Da.pos[2],Da.pos[3])),
-                            FormatDistance(BezierMinRadius(Da.pos[0],Da.pos[1],Da.pos[2],Da.pos[3])) );
+                            FormatDistance(BezierLength(Da.pos[0],Da.pos[1],Da.pos[2],Da.pos[3],0.0)),
+                            FormatDistance(BezierMaxCurve(Da.pos[0],Da.pos[1],Da.pos[2],Da.pos[3])) );
                 rc = C_CONTINUE;
             } else {
                 PlotCurve( curveMode, Da.pos[0], Da.pos[1], pos, &Da.curveData, TRUE );
@@ -373,7 +373,7 @@ static STATUS_T CmdCurve( wAction_t action, coOrd pos )
 	case C_UP:
 		mainD.funcs->options = wDrawOptTemp;
 		DrawSegs( &mainD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
-		if (Da.state == 0 || Da.state = 2) {
+		if (Da.state == 0 || Da.state == 2) {
 			SnapPos( &pos );
 			Da.pos[1] = pos;
 			Da.state = 1;
@@ -381,7 +381,7 @@ static STATUS_T CmdCurve( wAction_t action, coOrd pos )
 			DrawSegs( &mainD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
 			mainD.funcs->options = 0;
 			segCnt = tempSegs_da.cnt;
-			if (curveMode != bezCmdFromChord) InfoMessage( _("Drag on Red arrows to adjust curve") );
+			if (curveMode != crvCmdBezFromChord) InfoMessage( _("Drag on Red arrows to adjust curve") );
             else InfoMessage( _("Select control point or end and drag to adjust, Space or Enter to finish") );
 			return C_CONTINUE;
         } else {
@@ -414,16 +414,14 @@ static STATUS_T CmdCurve( wAction_t action, coOrd pos )
 		
             
     case C_OK:
-        if (curveMode == bezCmdFromChord) {
-            if (Da.curveData.type == curveTypeBezier) {
-                if ((d=BezierLength(Da.pos[0],Da.pos[1],Da.pos[2],Da.pos[3]))<=minLength) {
-                    ErrorMessage( MSG_TRK_TOO_SHORT, "Bezier ", PutDim(fabs(minLength-d)) );
-                    return C_TERMINATE;
-                }
-                UndoStart( _("Create Bezier Track"));
-                t = NewBezierTrack(Da.pos[0],Da.pos[1],Da.pos[2],Da.pos[3]);
-                UndoEnd();
+        if (curveMode == crvCmdBezFromChord) {
+            if ((d=BezierLength(Da.pos[0],Da.pos[1],Da.pos[2],Da.pos[3],0.0))<=minLength) {
+                ErrorMessage( MSG_TRK_TOO_SHORT, "Bezier ", PutDim(fabs(minLength-d)) );
+                return C_TERMINATE;
             }
+            UndoStart( _("Create Bezier Track"), "newCurve - Bezier");
+            t = NewBezierTrack(Da.pos[0],Da.pos[1],Da.pos[2],Da.pos[3]);
+            UndoEnd();
         }
         Da.state = -1;
         return C_TERMINATE;
