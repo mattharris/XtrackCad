@@ -251,8 +251,8 @@ typedef struct {
 #define SEG_BENCH		('B')
 #define SEG_DIMLIN		('M')
 #define SEG_TBLEDGE		('Q')
-#define SEG_BZRTRK      ('B')
-#define SEG_BZRLIN      ('F')
+#define SEG_BZRTRK      ('W')
+#define SEG_BZRLIN      ('V')
 
 #define IsSegTrack( S ) ( (S)->type == SEG_STRTRK || (S)->type == SEG_CRVTRK || (S)->type == SEG_JNTTRK || (S)->type == SEG_BZRTRK )
 

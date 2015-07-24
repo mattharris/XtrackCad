@@ -171,7 +171,7 @@ static struct {
 		FLOAT_T length;
 		coOrd center;
 		DIST_T radius;
-        DIST_T max_radius;
+        DIST_T min_radius;
 		ANGLE_T angle0;
 		ANGLE_T angle1;
 		ANGLE_T angle;
@@ -185,7 +185,7 @@ static struct {
 		wIndex_t fontSizeInx;
 		char text[STR_SIZE];
 		} drawData;
-typedef enum { E0, E1, C1, C2, CE, RA, LN, AL, A1, A2, VC, LW, CO, BE, OR, DS, TP, TA, TS, TX, PV, LY } drawDesc_e;
+typedef enum { E0, E1, C1, C2, CE, RA, LN, AL, MR, A1, A2, VC, LW, CO, BE, OR, DS, TP, TA, TS, TX, PV, LY } drawDesc_e;
 static descData_t drawDesc[] = {
 /*E0*/	{ DESC_POS, N_("End Pt 1: X"), &drawData.endPt[0] },
 /*E1*/	{ DESC_POS, N_("End Pt 2: X"), &drawData.endPt[1] },
@@ -195,7 +195,7 @@ static descData_t drawDesc[] = {
 /*RA*/	{ DESC_DIM, N_("Radius"), &drawData.radius },
 /*LN*/	{ DESC_DIM, N_("Length"), &drawData.length },
 /*AL*/	{ DESC_FLOAT, N_("Angle"), &drawData.angle },
-/*MR*/  { DESC_DIM, N_("Max Radius"), &drawData.max_radius },
+/*MR*/  { DESC_DIM, N_("Min Radius"), &drawData.min_radius },
 /*A1*/	{ DESC_ANGLE, N_("CCW Angle"), &drawData.angle0 },
 /*A2*/	{ DESC_ANGLE, N_("CW Angle"), &drawData.angle1 },
 /*VC*/	{ DESC_LONG, N_("Point Count"), &drawData.pointCount },
@@ -252,9 +252,9 @@ static void UpdateDraw( track_p trk, int inx, descData_p descUpd, BOOL_T final )
 		} else if (inx == E1 ) {
 			UNREORIGIN( segPtr->u.l.pos[1], drawData.endPt[1], xx->angle, xx->orig );
         } else if (inx ==C1 ) {
-            UNREORIGIN( segPtr->u.l.pos[2], drawData.endPt[2], xx->angle, xx->orig );
+            UNREORIGIN( segPtr->u.b.pos[2], drawData.endPt[2], xx->angle, xx->orig );
         } else {
-            UNREORIGIN( segPtr->u.l.pos[3], drawData.endPt[3], xx->angle, xx->orig );
+            UNREORIGIN( segPtr->u.b.pos[3], drawData.endPt[3], xx->angle, xx->orig );
         }
 		drawData.length = FindDistance( drawData.endPt[0], drawData.endPt[1] );
 		drawData.angle = FindAngle( drawData.endPt[0], drawData.endPt[1] );
@@ -263,9 +263,9 @@ static void UpdateDraw( track_p trk, int inx, descData_p descUpd, BOOL_T final )
 		break;
     case MR:
             if (segPtr->type == SEG_BZRLIN || segPtr->type == SEG_BZRTRK) {
-                calculateBezierMaxRadius(segPtr);
+                drawData.min_radius = BezierMinRadius(segPtr->u.b.pos[0],segPtr->u.b.pos[1],segPtr->u.b.pos[2],segPtr->u.b.pos[3]);
             } else {
-                drawData.max_radius = 0.0;
+                drawData.min_radius = 0.0;
             }
             drawDesc[MR].mode |= DESC_CHANGE;
         break;
@@ -471,10 +471,10 @@ static void DescribeDraw( track_p trk, char * str, CSIZE_T len )
 		break;
     case SEG_BZRTRK:
     case SEG_BZRLIN:
-        REORIGIN( drawData.endPt[0], segPtr->u.l.pos[0], xx->angle, xx->orig );
-        REORIGIN( drawData.endPt[1], segPtr->u.l.pos[1], xx->angle, xx->orig );
-        REORIGIN( drawData.endPt[2], segPtr->u.l.pos[2], xx->angle, xx->orig );
-        REORIGIN( drawData.endPt[3], segPtr->u.l.pos[3], xx->angle, xx->orig );
+        REORIGIN( drawData.endPt[0], segPtr->u.b.pos[0], xx->angle, xx->orig );
+        REORIGIN( drawData.endPt[1], segPtr->u.b.pos[1], xx->angle, xx->orig );
+        REORIGIN( drawData.endPt[2], segPtr->u.b.pos[2], xx->angle, xx->orig );
+        REORIGIN( drawData.endPt[3], segPtr->u.b.pos[3], xx->angle, xx->orig );
         drawDesc[E0].mode =
         drawDesc[E1].mode =
         drawDesc[C1].mode =
@@ -871,6 +871,7 @@ static char * objectName[] = {
 		N_("Filled Circle"),
 		N_("Filled Box"),
 		N_("Polygon"),
+        N_("Bezier"),
 		NULL};
 
 static STATUS_T CmdDraw( wAction_t action, coOrd pos )
@@ -909,6 +910,7 @@ static STATUS_T CmdDraw( wAction_t action, coOrd pos )
 		case OP_CIRCLE3:
 		case OP_BOX:
 		case OP_POLY:
+        case OP_BEZLIN:
 			controls[0] = drawWidthPD.control;
 			controls[1] = drawColorPD.control;
 			controls[2] = NULL;
@@ -1038,6 +1040,7 @@ static STATUS_T CmdDraw( wAction_t action, coOrd pos )
 #include "bitmaps/dcurve2.xpm"
 #include "bitmaps/dcurve3.xpm"
 #include "bitmaps/dcurve4.xpm"
+#include "bitmaps/dbezier.xpm"
 /*#include "bitmaps/dcircle1.xpm"*/
 #include "bitmaps/dcircle2.xpm"
 #include "bitmaps/dcircle3.xpm"
