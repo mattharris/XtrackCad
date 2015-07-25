@@ -38,7 +38,7 @@ struct extraData {
 		coOrd descriptionOff;
 		};
 
-static int log_Bezier = 0;
+static int log_bezier = 0;
 
 static DIST_T GetLengthBezier( track_p );
 
@@ -382,7 +382,9 @@ static void MoveBezier( track_p trk, coOrd orig )
 static void RotateBezier( track_p trk, coOrd orig, ANGLE_T angle )
 {
 	struct extraData *xx = GetTrkExtraData(trk);
-	Rotate( &xx->pos[0], orig, angle );
+    for (int i=0;i<5;i++) {
+        Rotate( &xx->pos[i], orig, angle );
+    }
 	ComputeBezierBoundingBox( trk, xx );
 }
 
@@ -399,6 +401,7 @@ static void RescaleBezier( track_p trk, FLOAT_T ratio )
     xx->pos[3].y *= ratio;
 	xx->min_radius = BezierMinRadius(xx->pos[0],xx->pos[1],xx->pos[2],xx->pos[3]);
     xx->length = BezierLength(xx->pos[0],xx->pos[1],xx->pos[2],xx->pos[3], 0.01);
+    ComputeBezierBoundingBox(trk, xx);
 }
 
 static BOOL_T SplitBezier( track_p trk, coOrd pos, EPINX_T ep, track_p *leftover, EPINX_T * ep0, EPINX_T * ep1 )
@@ -407,8 +410,17 @@ static BOOL_T SplitBezier( track_p trk, coOrd pos, EPINX_T ep, track_p *leftover
 	track_p trk1;
     
     //splitBezier(pos,xx->pos[0],xx->pos[1],xx->pos[2],xx->pos[3);
+    coOrd old[4], new[4];
     
-	trk1 = splitBezier( pos, xx->pos[0], xx->pos[1], xx->pos[2], xx->pos[3]);
+    BezierSplit(pos,&old[0],&new[0]);
+    
+	trk1 = newBezierTrack( new[0], new[1], new[2], new[3]);
+    
+    for (int i=0;i<4;i++) {
+        xx->pos[i] = old[i];
+    }
+    
+    ComputeBezierBoundingBox( trk, xx);
 	
 	*leftover = trk1;
 	*ep0 = 1-ep;
@@ -417,15 +429,17 @@ static BOOL_T SplitBezier( track_p trk, coOrd pos, EPINX_T ep, track_p *leftover
 	return TRUE;
 }
 
-static BOOL_T TraverseCurve( traverseTrack_p trvTrk, DIST_T * distR )
+static BOOL_T TraverseBezier( traverseTrack_p trvTrk, DIST_T * distR )
 {
-	track_p trk = trvTrk->trk;
+	//TODO
+    /*
+    track_p trk = trvTrk->trk;
 	struct extraData *xx = GetTrkExtraData(trk);
 	ANGLE_T a, a0, a1, a2, a3;
 	DIST_T arcDist;
 	DIST_T circum;
 	DIST_T dist;
-	circum = 2*M_PI*xx->radius;
+	circum = 2*M_PI*xx->min_radius;
 	GetCurveAngles( &a0, &a1, trk );
 	a2 = FindAngle( xx->pos[0], trvTrk->pos[0] );
 	a = NormalizeAngle( (a2-90.0) - trvTrk->angle );
@@ -470,7 +484,7 @@ static BOOL_T TraverseCurve( traverseTrack_p trvTrk, DIST_T * distR )
 		arcDist += turns * circum;
 	}
 	if ( a>270 || a<90 ) {
-		/* CCW */
+		// CCW
 		if ( arcDist < *distR ) {
 			PointOnCircle( &trvTrk->pos[0], xx->pos[0], xx->radius, a0 );
 			*distR -= arcDist;
@@ -484,7 +498,7 @@ static BOOL_T TraverseCurve( traverseTrack_p trvTrk, DIST_T * distR )
 			trvTrk->angle = NormalizeAngle( a2-90.0 );
 		}
 	} else {
-		/* CW */
+		// CW //
 		if ( arcDist < *distR ) {
 			PointOnCircle( &trvTrk->pos[0], xx->pos[0], xx->radius, a0+a1 );
 			*distR -= arcDist;
@@ -499,39 +513,22 @@ static BOOL_T TraverseCurve( traverseTrack_p trvTrk, DIST_T * distR )
 		}
 	}
 	trvTrk->trk = trk;
+    */
 	return TRUE;
+
 }
 
 
-static BOOL_T EnumerateCurve( track_p trk )
+static BOOL_T EnumerateBezier( track_p trk )
 {
 	struct extraData *xx;
 	ANGLE_T a0, a1;
 	DIST_T d;
 	if (trk != NULL) {
 		xx = GetTrkExtraData(trk);
-		GetCurveAngles( &a0, &a1, trk );
-		d = xx->radius * 2.0 * M_PI * a1 / 360.0;
+		d = xx->min_radius;
 		ScaleLengthIncrement( GetTrkScale(trk), d );
 	}
-	return TRUE;
-}
-
-static BOOL_T TrimBezier( track_p trk, EPINX_T ep, DIST_T dist )
-{
-	DIST_T d;
-	coOrd pos;
-	struct extraData *xx = GetTrkExtraData(trk);
-	
-	Translate( &pos, GetTrkEndPos(trk,ep), a, dist )
-
-    d = BezierLength(xx->pos[0],xx->pos[1],xx->pos[2],xx->pos[3]));
-	if ( d > minLength ) {
-		UndrawNewTrack( trk );
-		AdjustBezierEndPt( trk, ep, a+(ep==0?-90.0:90.0) );
-		DrawNewTrack( trk );
-	} else
-		DeleteTrack( trk, TRUE );
 	return TRUE;
 }
 
@@ -560,9 +557,9 @@ static BOOL_T MergeBezier(
 		DisconnectTracks( trk1, 1-ep1, trk2, ep2 );
 	}
 	if (ep0 == 0) {
-        xx->pos[1] = xx1->pos1;
+        xx0->pos[3] = xx1->pos[3];
 	} else {
-        xx->pos[0] = xx1->pos0;
+        xx0->pos[0] = xx1->pos[0];
 	}
 	DeleteTrack( trk1, FALSE );
 	if (trk2) {
@@ -582,6 +579,7 @@ static STATUS_T ModifyBezier( track_p trk, wAction_t action, coOrd pos )
     coOrd pos0, pos1;
     int selectedPos;
 	track_p trk1;
+    EPINX_T ep;
 	struct extraData *xx = GetTrkExtraData(trk);
     
     if (GetTrkType(trk) != T_BEZIER) return C_ERROR;
@@ -599,33 +597,33 @@ static STATUS_T ModifyBezier( track_p trk, wAction_t action, coOrd pos )
         if (state == 1) {
             d = FindDistance(pos, xx->pos[0]);
             for (int i=0;i<4;i++) {
-                If( d>FindDistance(pos, xx->pos[i])) {
+                if( d>FindDistance(pos, xx->pos[i])) {
                     d = FindDistance(pos,xx->pos[i]);
                     if (d < maxDistance) selectedPos = i;
                 }
             }
         }
         if (selectedPos>=0) {
-            tempSegs(0).type = SEG_BEZTRK;
+            tempSegs(0).type = SEG_BZRTRK;
             tempSegs(0).width = 0;
-            tempSegs(0).u.b.a0 = xx->pos[0];
-            tempSegs(0).u.b.a1 = xx->pos[1];
-            tempSegs(0).u.b.a2 = xx->pos[2];
-            tempSegs(0).u.b.a3 = xx->pos[3];
+            tempSegs(0).u.b.pos[0] = xx->pos[0];
+            tempSegs(0).u.b.pos[1] = xx->pos[1];
+            tempSegs(0).u.b.pos[2] = xx->pos[2];
+            tempSegs(0).u.b.pos[3] = xx->pos[3];
             if (selectedPos == 1) drawControlArm(xx->pos[0], xx->pos[1], TRUE);
             if (selectedPos == 3) drawControlArm(xx->pos[3], xx->pos[2], TRUE);
             tempSegs_da.cnt = 6;
             InfoMessage( _("Drag Selected Point") );
             state = 2;
         } else {
-            tempSegs(0).type = SEG_BEZTRK;
+            tempSegs(0).type = SEG_BZRTRK;
             tempSegs(0).width = 0;
-            tempSegs(0).u.b.a0 = xx->pos[0];
-            tempSegs(0).u.b.a1 = xx->pos[1];
-            tempSegs(0).u.b.a2 = xx->pos[2];
-            tempSegs(0).u.b.a3 = xx->pos[3];
-            drawControlArm(xx->pos[0, xx->pos[1], FALSE);
-            drawControlArm(xx->pos[1, xx->pos[2], FALSE);
+            tempSegs(0).u.b.pos[0] = xx->pos[0];
+            tempSegs(0).u.b.pos[1] = xx->pos[1];
+            tempSegs(0).u.b.pos[2] = xx->pos[2];
+            tempSegs(0).u.b.pos[3] = xx->pos[3];
+            drawControlArm(xx->pos[0], xx->pos[1], FALSE);
+            drawControlArm(xx->pos[3], xx->pos[2], FALSE);
             tempSegs_da.cnt = 6;
             InfoMessage( _("Select End Point or Control Point, Enter to finish") );
             state = 1;
@@ -633,8 +631,8 @@ static STATUS_T ModifyBezier( track_p trk, wAction_t action, coOrd pos )
         break;
 	case C_MOVE:
         if (state == 2) {
-            pos0 = xx->pos[0;
-            pos1 = xx->pos[1;
+            pos0 = xx->pos[0];
+            pos1 = xx->pos[3];
             if (selectedPos == 0) {
                 pos0 = pos;
             } else if (selectedPos == 3) {
@@ -645,28 +643,22 @@ static STATUS_T ModifyBezier( track_p trk, wAction_t action, coOrd pos )
                 ErrorMessage( MSG_TRK_TOO_SHORT, _("Bezier "), PutDim( fabs(minLength-d) ) );
                 return C_CONTINUE;
             }
-            xx->pos[0 = pos0;
-            xx->pos[1 = pos1;
-            if (selectedPos == 1) {
-                xx->pos[1] = pos;
-            }
-            if (selectedPos == 2) {
-                xx->pos[2] = pos;
-            }
-            xmin_radius = BezierMinRadius(xx->pos[0], xx->pos[1], xx->pos[2], xx->pos[3]);
-            xlength = BezierLength(xx->pos[0, xx->pos[1], xx->pos[2], xx->pos[1);
-            tempSegs(0).type = SEG_BEZTRK;
+            xx->pos[selectedPos] = pos;
+            
+            xx->min_radius = BezierMinRadius(xx->pos[0], xx->pos[1], xx->pos[2], xx->pos[3]);
+            xx->length = BezierLength(xx->pos[0], xx->pos[1], xx->pos[2], xx->pos[3], 0.01);
+            tempSegs(0).type = SEG_BZRTRK;
             tempSegs(0).width = 0;
-            tempSegs(0).u.b.a0 = xx->pos[0];
-            tempSegs(0).u.b.a1 = xx->pos[1];
-            tempSegs(0).u.b.a2 = xx->pos[2];
-            tempSegs(0).u.b.a3 = xx->pos[3];
+            tempSegs(0).u.b.pos[0] = xx->pos[0];
+            tempSegs(0).u.b.pos[1] = xx->pos[1];
+            tempSegs(0).u.b.pos[2] = xx->pos[2];
+            tempSegs(0).u.b.pos[3] = xx->pos[3];
             if (selectedPos == 1) drawControlArm(xx->pos[0], xx->pos[1], TRUE);
             if (selectedPos == 2) drawControlArm(xx->pos[3], xx->pos[2], TRUE);
             tempSegs_da.cnt = 6;
             state = 2;
             InfoMessage( _("Bezier: MinRadius=%s Length=%s"),
-                            FormatDistance( xmin_Radius ), FormatDistance( xlength ) );
+                            FormatDistance( xx->min_radius ), FormatDistance( xx->length ) );
         }
         return C_CONTINUE;
 	case C_UP:
@@ -687,8 +679,8 @@ static STATUS_T ModifyBezier( track_p trk, wAction_t action, coOrd pos )
 
 static DIST_T GetLengthBezier( track_p trk )
 {
-	
-	return BezierLength(xx->pos[0], xx->pos[1], xx->pos[2], xx->pos[3]);
+	struct extraData *xx = GetTrkExtraData(trk);
+	return BezierLength(xx->pos[0], xx->pos[1], xx->pos[2], xx->pos[3], 0.01);
 }
 
 
@@ -696,21 +688,23 @@ static BOOL_T GetParamsBezier( int inx, track_p trk, coOrd pos, trackParams_t * 
 {
 	struct extraData *xx = GetTrkExtraData(trk);
 	params->type = curveTypeBezier;
-    GetCurveAngles( &params->arcA0, &params->arcA1, trk );
+    GetBezierAngles( &params->arcA0, &params->arcA1, trk );
 	
     params->len = xx->length;
-    params->min_radius = xx->minRadius;
+    params->min_radius = xx->min_radius;
     params->ep = PickUnconnectedEndPoint( pos, trk );
     if (params->ep == -1)
 			return FALSE;
-	}
+	
 	return TRUE;
 }
 
 
 static BOOL_T MoveEndPtCurve( track_p *trk, EPINX_T *ep, coOrd pos, DIST_T d0 )
 {
-	coOrd posCen;
+	//TODO
+    /*
+    coOrd posCen;
 	DIST_T r;
 	ANGLE_T angle0;
 	ANGLE_T aa;
@@ -723,6 +717,7 @@ static BOOL_T MoveEndPtCurve( track_p *trk, EPINX_T *ep, coOrd pos, DIST_T d0 )
 	else
 		angle0 -= aa - 90.0;
 	AdjustCurveEndPt( *trk, *ep, angle0 );
+     */
 	return TRUE;
 }
 
@@ -737,7 +732,7 @@ static BOOL_T QueryBezier( track_p trk, int query )
 	case Q_HAS_DESC:
 		return TRUE;
 	case Q_EXCEPTION:
-		return xmin_radius < minTrackRadius;
+		return xx->min_radius < minTrackRadius;
 	default:
 		return FALSE;
 	}
@@ -768,26 +763,26 @@ static BOOL_T MakeParallelBezier(
 {
 	struct extraData * xx = GetTrkExtraData(trk);
 	struct extraData * xx1;
-    CoOrd np0,np1,nc1,nc2, p;
+    coOrd np0,np1,nc1,nc2, p;
     ANGLE_T a,a2;
 
 	//Produce bezier that is translated parallel to the existing Bezier
     // - not a precise result if the bezier end angles are not in the same general direction.
     
-    a = FindAngle(xx->pos[0,xx->pos[1);
-    p = BezierFindNearestPoint(pos, xx->pos[0, xx->pos[1], xx->pos[2], xx->pos[1);
+    a = FindAngle(xx->pos[0],xx->pos[3]);
+    p = BezierFindNearestPoint(pos, xx->pos[0], xx->pos[1], xx->pos[2], xx->pos[3]);
     a2 = FindAngle(pos,p);
     //find parallel move x and y for points
     if ( a2 < 180 ) {
-        np0 = TRANSLATE(&np0,sep,a+90);
-        nc1 = TRANSLATE(&nc1,sep,a+90);
-        nc2 = TRANSLATE(&nc2,sep,a+90);
-        np1 = TRANSLATE(&np1,sep,a+90);
+        TRANSLATE(&np0,sep,a+90);
+        TRANSLATE(&nc1,sep,a+90);
+        TRANSLATE(&nc2,sep,a+90);
+        TRANSLATE(&np1,sep,a+90);
     } else {
-        np0 = TRANSLATE(xx->pos[0],sepx,a-90);
-        nc1 = TRANSLATE(xx->pos[1],sepx,a-90);
-        nc2 = TRANSLATE(xx->pos[2],sepx,a-90);
-        np1 = TRANSLATE(xx->pos[3],sepx,a-90);
+        TRANSLATE(xx->pos[0],sep,a-90);
+        TRANSLATE(xx->pos[1],sep,a-90);
+        TRANSLATE(xx->pos[2],sep,a-90);
+        TRANSLATE(xx->pos[3],sep,a-90);
     }
 	if ( newTrkR ) {
 		*newTrkR = NewBezierTrack( np0,nc1,nc2,np1 );
@@ -797,14 +792,14 @@ static BOOL_T MakeParallelBezier(
 		tempSegs(0).color = wDrawColorBlack;
 		tempSegs(0).width = 0;
 		tempSegs_da.cnt = 1;
-		tempSegs(0).type = SEG_BEZTRK;
-		tempSegs(0).u.b.p0 = np0;
-		tempSegs(0).u.b.p1 = nc1;
-        tempSegs(0).u.b.p2 = nc2;
-        tempSegs(0).u.b.p3 = np1;
+		tempSegs(0).type = SEG_BZRTRK;
+		tempSegs(0).u.b.pos[0] = np0;
+		tempSegs(0).u.b.pos[1] = nc1;
+        tempSegs(0).u.b.pos[2] = nc2;
+        tempSegs(0).u.b.pos[3] = np1;
 	}
-	if ( p0R ) p0R = np0;
-	if ( p1R ) p1R = np1;
+	if ( p0R ) p0R = &np0;
+	if ( p1R ) p1R = &np1;
 	return TRUE;
 }
 
@@ -826,7 +821,7 @@ static trackCmd_t bezierCmds = {
 		TraverseBezier,
 		EnumerateBezier,
 		NULL,	/* redraw */
-		TrimBezier,
+		NULL,   /* trim   */
 		MergeBezier,
 		ModifyBezier,
 		GetLengthBezier,
@@ -851,10 +846,12 @@ EXPORT void BezierSegProc(
 	coOrd p0;
 	wIndex_t s0, s1;
 
-	switch (cmd) {
+	/*
+    switch (cmd) {
 
 	case SEGPROC_TRAVERSE1:
         //TODO workout distance to point on a curve
+        
 		a1 = FindAngle( segPtr->u.c.center, data->traverse1.pos );
 		a1 += (segPtr->u.c.radius>0?90.0:-90.0);
 		a2 = NormalizeAngle( data->traverse1.angle+a1 );
@@ -942,7 +939,9 @@ EXPORT void BezierSegProc(
 	case SEGPROC_GETANGLE:
 		data->getAngle.angle = NormalizeAngle( FindAngle( data->getAngle.pos, segPtr->u.c.center ) + 90 );
 		break;
+    
 	}
+     */
 }
 
 
@@ -965,12 +964,14 @@ EXPORT void PlotBezier(
 	DIST_T d0, d2, r;
 	ANGLE_T angle, a0, a1, a2;
 	coOrd posx;
-
+    //TODO
+    /*
 	switch ( mode ) {
 	case crvCmdFromEP1:
             
             
 			}
+     */
 }
 
 EXPORT track_p NewBezierTrack( coOrd pos0, coOrd ctl1, coOrd ctl2, coOrd pos1 )
@@ -979,29 +980,16 @@ EXPORT track_p NewBezierTrack( coOrd pos0, coOrd ctl1, coOrd ctl2, coOrd pos1 )
 	track_p p;
 	p = NewTrack( 0, T_BEZIER, 2, sizeof *xx );
 	xx = GetTrkExtraData(p);
-    xx->pos[0 = pos0;
+    xx->pos[0] = pos0;
     xx->pos[1] = ctl1;
     xx->pos[2] = ctl2;
-    xx->pos[1 = pos1;
-    xmin_radius = BezierMinRadius(pos0,ctl1,ctl2,pos1);
-    xlength = BezierLength(pos0,ctl1,ctl2,pos1);
-LOG( log_curve, 1, ( "NewBezierTrack( %0.3f, %0.3f, %0.3f )  = %d\n", pos.x, pos.y, r, GetTrkIndex(p) ) )
+    xx->pos[3] = pos1;
+    xx->min_radius = BezierMinRadius(pos0,ctl1,ctl2,pos1);
+    xx->length = BezierLength(pos0,ctl1,ctl2,pos1, 0.01);
+LOG( log_bezier, 1, ( "NewBezierTrack( %0.3f, %0.3f, %0.3f )  = %d\n", pos0.x, pos0.y, GetTrkIndex(p) ) )
 	ComputeCurveBoundingBox( p, xx );
 	CheckTrackLength( p );
 	return p;
-}
-
-EXPORT track_p NewBezierTrack( coOrd p0, coOrd p1, coOrd p2, coOrd p3) {
-    struct extraData *xx;
-    track_p p;
-    p = NewTrack(0, T_BEZIER, 2, sizeof *xx );
-    xx = GetTrkExtraData(p);
-    xx->pos[0 = p0;
-    xx->pos[1] = p1;
-    xx->pos[2] = p2;
-    xx->pos[1 = p3;
-    xmin_radius = BezierMinRadius(p0,p1,p2,p3);
-    xlength = BezierLength(p0,p1,p2,p3);
 }
 
 
@@ -1009,5 +997,5 @@ EXPORT track_p NewBezierTrack( coOrd p0, coOrd p1, coOrd p2, coOrd p3) {
 EXPORT void InitTrkBezier( void )
 {
 	T_BEZIER = InitObject( &bezierCmds );
-	log_curve = LogFindIndex( "Bezier" );
+	log_bezier = LogFindIndex( "Bezier" );
 }
