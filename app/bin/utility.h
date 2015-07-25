@@ -55,9 +55,17 @@ void FindPos( coOrd * res, double * beyond, coOrd pos, coOrd orig, double angle,
 int FindIntersection( coOrd *Pc, coOrd P00, double A0, coOrd P10, double A1 );
 double LineDistance( coOrd *p, coOrd p0, coOrd p1 );
 double CircleDistance( coOrd *p, coOrd c, double r, double a0, double a1 );
+double BezierDistance( coOrd *p, coOrd p0, coOrd p1, coOrd p2, coOrd p3);
 int PickArcEndPt( coOrd, coOrd, coOrd );
 int PickLineEndPt( coOrd, double, coOrd );
 coOrd AddCoOrd( coOrd, coOrd, double );
 int ClipLine( coOrd *, coOrd *, coOrd, double, coOrd );
+double BezierCurvature(coOrd p0, coOrd p1, coOrd p2, coOrd p3, double t, coOrd * center);
+double BezierMaxCurve(coOrd p0, coOrd p1, coOrd p2, coOrd p3);
+double BezierMinRadius(coOrd p0, coOrd p1, coOrd p2, coOrd p3);
+double BezierCurvature(coOrd p0, coOrd p1, coOrd p2, coOrd p3, double t, coOrd * center);
+double BezierLength(coOrd p0, coOrd p1, coOrd p2, coOrd p3, double error);
+double BezierDistance( coOrd *p, coOrd p0, coOrd p1, coOrd p2, coOrd p3);
+coOrd BezierPointByParameter(coOrd p0, coOrd p1, coOrd p2, coOrd p3, double t);
 
 #endif
