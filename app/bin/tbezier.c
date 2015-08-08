@@ -49,6 +49,19 @@ static DIST_T GetLengthBezier( track_p );
  */
 
 
+static void GetBezierAngles( ANGLE_T *a0, ANGLE_T *a1, track_p trk )
+{
+    struct extraData *xx = GetTrkExtraData(trk);
+    assert( trk != NULL );
+    
+        *a0 = NormalizeAngle( GetTrkEndAngle(trk,0) + 90 );
+        *a1 = NormalizeAngle(
+                             GetTrkEndAngle(trk,1) - GetTrkEndAngle(trk,0) + 180 );
+    
+    LOG( log_bezier, 4, ( "getBezierAngles: = %0.3f %0.3f\n", *a0, *a1 ) )
+}
+
+
 static void ComputeBezierBoundingBox( track_p trk, struct extraData * xx )
 {
     coOrd hi, lo;
@@ -285,7 +298,7 @@ static DIST_T DistanceBezier( track_p t, coOrd * p )
 	struct extraData *xx = GetTrkExtraData(t);
 	ANGLE_T a0, a1;
 	DIST_T d;
-    d = BezierDistance( p, xx->pos[0], xx->pos[1], xx->pos[2], xx->pos[1] );
+    d = BezierDistance( p, xx->pos[0], xx->pos[1], xx->pos[2], xx->pos[1], 100, NULL );
 	return d;
 }
 
@@ -404,21 +417,30 @@ static void RescaleBezier( track_p trk, FLOAT_T ratio )
     ComputeBezierBoundingBox(trk, xx);
 }
 
+/**
+ * Split the Track at approximately the point pos.
+ */
 static BOOL_T SplitBezier( track_p trk, coOrd pos, EPINX_T ep, track_p *leftover, EPINX_T * ep0, EPINX_T * ep1 )
 {
 	struct extraData *xx = GetTrkExtraData(trk);
 	track_p trk1;
+    double t;
     
-    //splitBezier(pos,xx->pos[0],xx->pos[1],xx->pos[2],xx->pos[3);
-    coOrd old[4], new[4];
+    coOrd old[4], newl[4], newr[4];
     
-    BezierSplit(pos,&old[0],&new[0]);
+    double dd = BezierDistance(&pos, xx->pos[0], xx->pos[1], xx->pos[2], xx->pos[3], 100, &t );
     
-	trk1 = newBezierTrack( new[0], new[1], new[2], new[3]);
+    if (dd>minLength) return FALSE;
+    
+    BezierSplit(&old[0], &newl[0], &newr[0], t);
+    
+	trk1 = NewBezierTrack( newr[0], newr[1], newr[2], newr[3] );
     
     for (int i=0;i<4;i++) {
-        xx->pos[i] = old[i];
+        xx->pos[i] = newl[i];
     }
+    
+    xx->length = BezierLength(xx->pos[0], xx->pos[1], xx->pos[2], xx->pos[3], 0.01);
     
     ComputeBezierBoundingBox( trk, xx);
 	
@@ -431,89 +453,48 @@ static BOOL_T SplitBezier( track_p trk, coOrd pos, EPINX_T ep, track_p *leftover
 
 static BOOL_T TraverseBezier( traverseTrack_p trvTrk, DIST_T * distR )
 {
-	//TODO
-    /*
     track_p trk = trvTrk->trk;
 	struct extraData *xx = GetTrkExtraData(trk);
-	ANGLE_T a, a0, a1, a2, a3;
+	ANGLE_T a, a0, a1;
 	DIST_T arcDist;
-	DIST_T circum;
 	DIST_T dist;
-	circum = 2*M_PI*xx->min_radius;
-	GetCurveAngles( &a0, &a1, trk );
-	a2 = FindAngle( xx->pos[0], trvTrk->pos[0] );
-	a = NormalizeAngle( (a2-90.0) - trvTrk->angle );
-	
-	if ( a>270 || a<90 )
-		arcDist = NormalizeAngle(a2-a0)/360.0*circum;
-	else
-		arcDist = NormalizeAngle(a0+a1-a2)/360.0*circum;
-	if ( xx->helixTurns > 0 ) {
-		turns = xx->helixTurns;
-		if ( NormalizeAngle(a2-a0) > a1 )
-			turns -= 1;
-		dist = (a1/360.0+xx->helixTurns)*circum;
-		if ( trvTrk->length < 0 ) {
-			trvTrk->length = dist;
-			trvTrk->dist = a1/360.0*circum - arcDist;
-			while ( trvTrk->dist < 0 ) {
-				if ( trvTrk->dist > -0.1 )
-					trvTrk->dist = 0.0;
-				else
-					trvTrk->dist += circum;
-			}
-		} else {
-			if ( trvTrk->length != dist ) {
-				printf( "traverseCurve: trvTrk->length(%0.3f) != Dist(%0.3f)\n", trvTrk->length, dist );
-				trvTrk->length = dist;
-			}
-			if ( trvTrk->length < trvTrk->dist ) {
-				printf( "traverseCurve: trvTrk->length(%0.3f) < trvTrk->dist(%0.3f)\n", trvTrk->length, trvTrk->dist );
-				trvTrk->dist = trvTrk->length;
-			}
-			a3 = trvTrk->dist/circum*360.0;
-			if ( a>270 || a<90 )
-				a3 = (a0+a1-a3);
-			else
-				a3 = (a0+a3);
-			a3 = NormalizeAngle(a3);
-			if ( NormalizeAngle(a2-a3+1.0) > 2.0 )
-				printf( "traverseCurve: A2(%0.3f) != A3(%0.3f)\n", a2, a3 );
-			turns = (int)((trvTrk->length-trvTrk->dist)/circum);
-		}
-		arcDist += turns * circum;
-	}
+    double t;
+    GetBezierAngles( &a0, &a1, trk );
+    
+	a = NormalizeAngle( (a1-90.0) - trvTrk->angle );
 	if ( a>270 || a<90 ) {
 		// CCW
-		if ( arcDist < *distR ) {
-			PointOnCircle( &trvTrk->pos[0], xx->pos[0], xx->radius, a0 );
-			*distR -= arcDist;
+		if ( xx->length < *distR ) {
+			trvTrk->pos = xx->pos[3];
+			*distR -= xx->length;
 			trvTrk->angle = NormalizeAngle( a0-90.0 );
 			trk = GetTrkEndTrk( trk, 0 );
 		} else {
 			trvTrk->dist += *distR;
-			a2 -= *distR/circum*360.0;
-			PointOnCircle( &trvTrk->pos[0], xx->pos[0], xx->radius, a2 );
+            t = 1-(double)*distR/xx->length;
+			trvTrk->pos = BezierPointByParameter(xx->pos[3],xx->pos[2],xx->pos[1],xx->pos[0], t);
 			*distR = 0;
-			trvTrk->angle = NormalizeAngle( a2-90.0 );
+            coOrd derivative = BezierFirstDerivative(xx->pos[3],xx->pos[2],xx->pos[1],xx->pos[0], t );
+			trvTrk->angle = atan2(  derivative.x, derivative.y );
 		}
 	} else {
 		// CW //
-		if ( arcDist < *distR ) {
-			PointOnCircle( &trvTrk->pos[0], xx->pos[0], xx->radius, a0+a1 );
-			*distR -= arcDist;
+		if ( xx->length < *distR ) {
+			trvTrk->pos = xx->pos[0];
+			*distR -= xx->length;
 			trvTrk->angle = NormalizeAngle( a0+a1+90.0 );
 			trk = GetTrkEndTrk( trk, 1 );
 		} else {
 			trvTrk->dist += *distR;
-			a2 += *distR/circum*360.0;
-			PointOnCircle( &trvTrk->pos[0], xx->pos[0], xx->radius, a2 );
+            t = (double)*distR/xx->length;
+			trvTrk->pos = BezierPointByParameter(xx->pos[0],xx->pos[1],xx->pos[2],xx->pos[3], t );
 			*distR = 0;
-			trvTrk->angle = NormalizeAngle( a2+90.0 );
+            coOrd derivative = BezierFirstDerivative(xx->pos[0],xx->pos[1],xx->pos[2],xx->pos[3], t );
+			trvTrk->angle = atan2( derivative.x, derivative.y );
 		}
 	}
 	trvTrk->trk = trk;
-    */
+    
 	return TRUE;
 
 }
@@ -558,14 +539,18 @@ static BOOL_T MergeBezier(
 	}
 	if (ep0 == 0) {
         xx0->pos[3] = xx1->pos[3];
+        xx0->pos[2] = xx1->pos[2];
 	} else {
         xx0->pos[0] = xx1->pos[0];
+        xx0->pos[1] = xx1->pos[1];
 	}
 	DeleteTrack( trk1, FALSE );
 	if (trk2) {
 		ConnectTracks( trk0, ep0, trk2, ep2 );
 	}
 	DrawNewTrack( trk0 );
+    xx0->length = BezierLength(xx0->pos[0],xx0->pos[1],xx0->pos[2],xx0->pos[3],0.01);
+    xx0->min_radius = BezierMinRadius(xx0->pos[0],xx0->pos[1],xx0->pos[2],xx0->pos[3]);
 	ComputeBezierBoundingBox( trk0, GetTrkExtraData(trk0) );
 	return TRUE;
 }
@@ -699,9 +684,24 @@ static BOOL_T GetParamsBezier( int inx, track_p trk, coOrd pos, trackParams_t * 
 	return TRUE;
 }
 
+static void AdjustBezierEndPt( track_p t, EPINX_T inx, coOrd pos ) {
+    struct extraData *xx = GetTrkExtraData(t);
+    if (inx ==0 ) {
+        xx->pos[1].x += -xx->pos[0].x+pos.x;
+        xx->pos[1].y += -xx->pos[0].y+pos.y;
+        xx->pos[0] = pos;
+    }
+    else {
+        xx->pos[2].x += -xx->pos[3].x+pos.x;
+        xx->pos[2].y += -xx->pos[3].y+pos.y;
+        xx->pos[3] = pos;
+    }
+}
 
-static BOOL_T MoveEndPtCurve( track_p *trk, EPINX_T *ep, coOrd pos, DIST_T d0 )
+
+static BOOL_T MoveEndPtBezier( track_p *trk, EPINX_T *ep, coOrd pos, DIST_T d0 )
 {
+    struct extraData *xx = GetTrkExtraData(trk);
 	//TODO
     /*
     coOrd posCen;
@@ -718,6 +718,7 @@ static BOOL_T MoveEndPtCurve( track_p *trk, EPINX_T *ep, coOrd pos, DIST_T d0 )
 		angle0 -= aa - 90.0;
 	AdjustCurveEndPt( *trk, *ep, angle0 );
      */
+    AdjustBezierEndPt(*trk, *ep, *pos);
 	return TRUE;
 }
 
@@ -770,7 +771,7 @@ static BOOL_T MakeParallelBezier(
     // - not a precise result if the bezier end angles are not in the same general direction.
     
     a = FindAngle(xx->pos[0],xx->pos[3]);
-    p = BezierFindNearestPoint(pos, xx->pos[0], xx->pos[1], xx->pos[2], xx->pos[3]);
+    p = BezierFindNearestPoint(&pos, xx->pos[0], xx->pos[1], xx->pos[2], xx->pos[3], 100);
     a2 = FindAngle(pos,p);
     //find parallel move x and y for points
     if ( a2 < 180 ) {
