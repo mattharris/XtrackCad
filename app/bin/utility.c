@@ -405,8 +405,9 @@ double CircleDistance( coOrd *p, coOrd c, double r, double a0, double a1 )
  *
  ********************************************************************************/
 
+
 /**
- * Return point on Bezier
+ * Return point on Bezier using "t" (from 0 to 1)
  */
 extern coOrd BezierPointByParameter(coOrd p0, coOrd p1, coOrd p2, coOrd p3, double t)
 {
@@ -429,24 +430,32 @@ extern coOrd BezierPointByParameter(coOrd p0, coOrd p1, coOrd p2, coOrd p3, doub
     c.y = resultY;
     return c;
 }
-
-extern double BezierDistance( coOrd *p, coOrd p0, coOrd p1, coOrd p2, coOrd p3)
+/**
+ * Find distance from point to Bezier. Return also the "t" value of that closest point.
+ */
+extern double BezierDistance( coOrd *p, coOrd p0, coOrd p1, coOrd p2, coOrd p3, int segments, double * t_value)
 {
-    int segments = 100;
     double dd = FindDistance(*p,p0);
+    double t = 0.0;
     coOrd pt;
-    for (int i = 1;i<segments;i++) {
+    for (int i = 1;i<=segments;i++) {
         pt = BezierPointByParameter(p0, p1, p2, p3, (double)i/segments);
-        if (FindDistance(*p,pt) < dd) dd=FindDistance(*p,pt);
+        if (FindDistance(*p,pt) < dd) { dd=FindDistance(*p,pt); t= (double)i/segments; }
     }
+    if (t_value) *t_value = t;
     return dd;
 }
 
+extern coOrd BezierFindNearestPoint(coOrd *p, coOrd p0, coOrd p1, coOrd p2, coOrd p3, int segments) {
+    double t = 0.0;
+    double dd = BezierDistance (p, p0, p1, p2, p3, segments, &t);
+    return BezierPointByParameter(p0, p1, p2, p3, t);
+}
 
 /**
  * Split bezier into two parts
  */
-extern void BezierSplit(coOrd input[4], coOrd left[4], coOrd right[4], double t) {
+extern void BezierSplit(coOrd input[4], coOrd left[4], coOrd right[4] , double t) {
     
     int   i, j;                               /* Index variables  */
     coOrd  Vtemp[4][4];                      /* Triangle Matrix */
@@ -516,9 +525,6 @@ extern double BezierLength(coOrd p0, coOrd p1, coOrd p2, coOrd p3, double error)
     return length;                                  /* that's it! */
     
 }
-
-
-
 
 coOrd  BezierFirstDerivative(coOrd p0, coOrd p1, coOrd p2, coOrd p3, double t)
 {
